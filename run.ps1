@@ -36,6 +36,8 @@ function Cleanup {
         [long]$BackupSize = 0
     )
 
+    $ErrorActionPreference = "Continue"
+
     # 임시 폴더 삭제
     if ($null -ne $tempRootPath -and (Test-Path $tempRootPath)) {
         Remove-Item -Path $tempRootPath -Recurse -Force
@@ -123,13 +125,19 @@ if (-not (Get-Module -ListAvailable -Name 'powershell-yaml')) {
     throw "powershell-yaml 모듈이 필요합니다. 'Install-Module powershell-yaml'로 설치하세요."
 }
 
+# 외부 도구 검사
+if (-not (Get-Command "7z" -ErrorAction SilentlyContinue)) {
+    throw "7z.exe가 PATH에 없습니다. 7-Zip을 설치하세요."
+}
+
 # 설정 파일 로드
 $config = Get-Content $configPath -Raw | ConvertFrom-Yaml
 
 # temp 폴더 생성
-$tempFolderName = "domi_backup-$(Get-Date -Format 'yyyyMMdd-HHmmss')-$([guid]::NewGuid().ToString('N').Substring(0,8))"
-$tempRootPath = "$($config.temp_directory)\\$tempFolderName"
-$tempPath = "$tempRootPath\\src"
+$backupDate = Get-Date
+$tempFolderName = "domi_backup-$($backupDate.ToString('yyyyMMdd-HHmmss'))-$([guid]::NewGuid().ToString('N').Substring(0,8))"
+$tempRootPath = Join-Path $config.temp_directory $tempFolderName
+$tempPath = Join-Path $tempRootPath "src"
 
 New-Item -ItemType Directory -Path $tempRootPath -Force | Out-Null
 Write-Log -Level "INFO" -Message "$tempFolderName 임시 폴더 생성됨"
@@ -144,7 +152,7 @@ trap { Cleanup -IsError; break }
 
 # 남은 드라이브 문자 계산
 $used = (Get-PSDrive -PSProvider FileSystem).Name
-$leftDriveChar = [char[]](67..90 | ForEach-Object { [char]$_ }) |
+[array]$leftDriveChar = [char[]](67..90 | ForEach-Object { [char]$_ }) |
   Where-Object { $_ -notin $used }
   
 [array]$networkStorages = $config.backup_storage |
@@ -202,11 +210,17 @@ foreach ($storage in $networkStorages) {
 # DB 덤프
 #################################################
 
+if ($config.sql -and $config.sql.databases) {
+
+if (-not (Get-Command "mysqldump.exe" -ErrorAction SilentlyContinue)) {
+    throw "mysqldump.exe가 PATH에 없습니다. MySQL을 설치하세요."
+}
+
 #비밀번호 정보
 if (-not [string]::IsNullOrEmpty($config.sql.password_env)) {
     $sqlPassword = [Environment]::GetEnvironmentVariable($config.sql.password_env)
 
-    if ($sqlPassword -eq $null) {
+    if ($null -eq $sqlPassword) {
         throw "SQL 비밀번호를 가져올 수 없습니다."
     }
 }
@@ -270,6 +284,8 @@ try {
     Remove-Item -Path $credFile -Force -ErrorAction SilentlyContinue
 }
 
+} # DB 덤프 끝
+
 
 #################################################
 # 파일 백업
@@ -316,8 +332,8 @@ foreach ($target in $config.backup_targets) {
 # 백업 파일 압축
 #################################################
 
-$backupFileName = "domiBackup_$(Get-Date -Format 'yyyy-MM-dd-HHmmss').7z"
-$backupPath = "$tempRootPath\\compress"
+$backupFileName = "domiBackup_$($backupDate.ToString('yyyy-MM-dd-HHmmss')).7z"
+$backupPath = Join-Path $tempRootPath "compress"
 
 Write-Log -Level "INFO" -Message "압축중..."
 
@@ -349,7 +365,7 @@ foreach ($storage in $networkStorages) {
     Write-Log -Level "INFO" -Message "$($storage.share_path)($($storage.host))으로 파일 복사중..."
     
     # 네트워크 드라이브로 복사
-    robocopy $backupPath "$($storage._drive):\\" /E /Z /R:5 /W:10 /IPG:10 /NP /NFL /NDL /NJH /NJS
+    robocopy "$backupPath" "$($storage._drive):\\" /E /Z /R:5 /W:10 /IPG:10 /NP /NFL /NDL /NJH /NJS
 
     # 오류 검사
     if ($LASTEXITCODE -ge 8) {
