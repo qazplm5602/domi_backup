@@ -59,7 +59,7 @@ foreach ($storage in $networkStorages) {
     $rootPath = "\\" + $storage.host + "\" + $storage.share_path
 
     try {
-        New-PSDrive -Name $storage._drive -PSProvider FileSystem -Root $rootPath -ErrorAction Stop | Out-Null
+        New-PSDrive -Name $storage._drive -PSProvider FileSystem -Root $rootPath -Persist -ErrorAction Stop | Out-Null
     } catch {
         Write-Log -Level "ERROR" -Message "$rootPath 드라이브 연결 실패"
         throw $_
@@ -121,6 +121,7 @@ foreach ($database in $config.sql.databases) {
     Write-Log -Level "INFO" -Message "$database 데이터베이스 덤프 완료"
 }
 
+
 #################################################
 # 파일 백업
 #################################################
@@ -139,8 +140,41 @@ foreach ($target in $config.backup_targets) {
         }
         
         # 파일 복사
-        robocopy $path[1] "$tempPath\\$($target.name)\\$($path[0])" /E /MT:16 /R:3 /W:5 /NP
+        robocopy $path[1] "$tempPath\\$($target.name)\\$($path[0])" /E /MT:16 /R:3 /W:5 /NP /NFL /NDL /NJH /NJS
     }
 
     Write-Log -Level "INFO" -Message "$($target.name) 백업 완료"
 }
+
+
+#################################################
+# 백업 파일 압축
+#################################################
+
+$backupFileName = "domiBackup_$(Get-Date -Format 'yyyy-MM-dd').7z"
+$backupPath = "$tempRootPath\\compress"
+
+Write-Log -Level "INFO" -Message "압축중..."
+
+# 7z 최대로 압축
+7z a -t7z "$backupPath\\$backupFileName" $tempPath -mx=9 -m0=lzma2 -mfb=64 -md=64m -bso0 -bsp0
+
+Write-Log -Level "INFO" -Message "압축 완료"
+
+
+#################################################
+# 백업 장치에 저장
+#################################################
+
+# 나중에 네트워크 드라이브 이외에서도 할 예정
+
+foreach ($storage in $networkStorages) {
+    Write-Log -Level "INFO" -Message "$($storage.share_path)($($storage.host))으로 파일 복사중..."
+    
+    # 네트워크 드라이브로 복사
+    robocopy $backupPath "$($storage._drive):\\" /E /Z /R:5 /W:10 /IPG:10 /NP /NFL /NDL /NJH /NJS
+    
+    Write-Log -Level "INFO" -Message "$($storage.share_path)($($storage.host))으로 파일 복사 완료"
+}
+
+Write-Log -Level "INFO" -Message "백업 완료!"
