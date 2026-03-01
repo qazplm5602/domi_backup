@@ -16,6 +16,13 @@ function Write-Log {
         [string]$Level = "INFO",
         [string]$Message
     )
+
+    # 10MB 넘으면 로테이션
+    if ((Test-Path $logPath) -and (Get-Item $logPath).Length -gt 10MB) {
+        $archiveName = $logPath -replace '\.txt$', "-$(Get-Date -Format 'yyyyMMdd-HHmmss').txt"
+        Move-Item -Path $logPath -Destination $archiveName -Force
+    }
+
     "$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') [$Level] $Message" | Out-File -Append $logPath
     Write-Host "$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') [$Level] $Message"
 }
