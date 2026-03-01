@@ -127,7 +127,7 @@ try {
         $errors = $result | Where-Object { $_ -is [System.Management.Automation.ErrorRecord] }
         $dump = $result | Where-Object { $_ -isnot [System.Management.Automation.ErrorRecord] }
     
-        if ($null -ne $errors) {
+        if ($errors.Count -ne 0) {
             Write-Log -Level "ERROR" -Message "$database DB 덤프 실패"
             $errors
     
