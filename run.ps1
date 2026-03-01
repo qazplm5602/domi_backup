@@ -93,7 +93,7 @@ function Cleanup {
         }
     
         # Prometheus 로그 저장
-        @"
+        $content = @"
 # HELP domi_backup_last_timestamp Unix timestamp of last backup attempt
 # TYPE domi_backup_last_timestamp gauge
 domi_backup_last_timestamp $($prometheus.domi_backup_last_timestamp)
@@ -106,7 +106,14 @@ domi_backup_last_success_timestamp $($prometheus.domi_backup_last_success_timest
 # HELP domi_backup_size_bytes Size of last successful backup in bytes
 # TYPE domi_backup_size_bytes gauge
 domi_backup_size_bytes $($prometheus.domi_backup_size_bytes)
-"@ | Set-Content -Path $prometheusPath -Encoding UTF8
+
+"@ -replace "`r`n","`n"
+
+        [System.IO.File]::WriteAllText(
+            $prometheusPath,
+            $content,
+            (New-Object System.Text.UTF8Encoding($false))
+        )
     }
 }
 
