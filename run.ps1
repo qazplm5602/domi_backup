@@ -32,7 +32,7 @@ $networkStorages = $config.backup_storage |
     Where-Object { $_.type -eq 'smb' }
 
 # 드라이브 문자 할당 검증
-if ($networkStorages.length > $leftDriveChar.length) {
+if ($networkStorages.length -gt $leftDriveChar.length) {
     throw "할당 할 드라이브 문자가 부족합니다."
 }
 
