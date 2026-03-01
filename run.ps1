@@ -169,6 +169,20 @@ if (-not [string]::IsNullOrEmpty($config.sql.password_env)) {
 # 인증 정보 파일 생성
 $credFile = [System.IO.Path]::GetTempFileName()
 
+# 현재 사용자만 접근 가능하도록 ACL 설정
+$acl = Get-Acl $credFile
+$acl.SetAccessRuleProtection($true, $false)  # 상속 차단, 기존 규칙 제거
+
+# 규칙 추가
+$rule = New-Object System.Security.AccessControl.FileSystemAccessRule(
+    [System.Security.Principal.WindowsIdentity]::GetCurrent().Name,
+    "FullControl", "Allow"
+)
+$acl.AddAccessRule($rule)
+
+# 인증 파일 규칙 적용
+Set-Acl -Path $credFile -AclObject $acl
+
 $credContent = @"
 [mysqldump]
 user=$($config.sql.user)
