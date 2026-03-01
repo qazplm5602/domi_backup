@@ -1,4 +1,13 @@
 #################################################
+# 경로 설정
+#################################################
+
+$scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+$logPath = Join-Path $scriptDir "log.txt"
+$configPath = Join-Path $scriptDir "config.yaml"
+
+
+#################################################
 # 유틸리티
 #################################################
 
@@ -7,7 +16,7 @@ function Write-Log {
         [string]$Level = "INFO",
         [string]$Message
     )
-    "$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') [$Level] $Message" | Out-File -Append "./log.txt"
+    "$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') [$Level] $Message" | Out-File -Append $logPath
     Write-Host "$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') [$Level] $Message"
 }
 
@@ -25,6 +34,7 @@ function Cleanup {
     }
 }
 
+
 #################################################
 
 Write-Log -Level "INFO" -Message ""
@@ -36,7 +46,7 @@ Write-Log -Level "INFO" -Message "백업 시작."
 #################################################
 
 # 설정 파일 로드
-$config = Get-Content ./config.yaml -Raw | ConvertFrom-Yaml
+$config = Get-Content $configPath -Raw | ConvertFrom-Yaml
 
 # temp 폴더 생성
 $tempFolderName = "domi_backup-$(Get-Date -Format 'yyyyMMdd')-$(Get-Random -Maximum 9999)"
@@ -48,6 +58,7 @@ Write-Log -Level "INFO" -Message "$tempFolderName 임시 폴더 생성됨"
 
 # 예외 발생 시 자동 클린업
 trap { Cleanup; break }
+
 
 #################################################
 # 네트워크 드라이브
