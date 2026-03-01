@@ -140,11 +140,12 @@ $tempFolderName = "domi_backup-$($backupDate.ToString('yyyyMMdd-HHmmss'))-$([gui
 $tempRootPath = Join-Path $config.temp_directory $tempFolderName
 $tempPath = Join-Path $tempRootPath "src"
 
-New-Item -ItemType Directory -Path $tempRootPath -Force | Out-Null
+New-Item -ItemType Directory -Path $tempPath -Force | Out-Null
 Write-Log -Level "INFO" -Message "$tempFolderName 임시 폴더 생성됨"
 
 # 예외 발생 시 자동 클린업
-trap { Cleanup -IsError; break }
+$cleanupDone = $false
+trap { if (-not $cleanupDone) { Cleanup -IsError }; break }
 
 
 #################################################
@@ -178,7 +179,7 @@ foreach ($storage in $networkStorages) {
         Name        = $storage._drive
         PSProvider  = "FileSystem"
         Root        = $rootPath
-        Persist     = $false
+        Persist     = $true
         ErrorAction = "Stop"
     }
 
@@ -280,6 +281,7 @@ try {
             throw "$database DB 덤프 실패"
         }
     
+        Remove-Item -Path $errPath -Force -ErrorAction SilentlyContinue
         Write-Log -Level "INFO" -Message "$database 데이터베이스 덤프 완료"
     }
 } finally {
@@ -391,6 +393,7 @@ foreach ($storage in $networkStorages) {
 
 Write-Log -Level "INFO" -Message "정리중..."
 Cleanup -BackupSize $backupFileSize
+$cleanupDone = $true
 Write-Log -Level "INFO" -Message "정리 완료"
 
 
