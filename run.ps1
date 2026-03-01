@@ -131,11 +131,11 @@ $used = (Get-PSDrive -PSProvider FileSystem).Name
 $leftDriveChar = [char[]](67..90 | ForEach-Object { [char]$_ }) |
   Where-Object { $_ -notin $used }
   
-$networkStorages = $config.backup_storage |
+[array]$networkStorages = $config.backup_storage |
     Where-Object { $_.type -eq 'smb' }
 
 # 드라이브 문자 할당 검증
-if ($networkStorages.length -gt $leftDriveChar.length) {
+if ($networkStorages.length -gt $leftDriveChar.Count) {
     throw "할당 할 드라이브 문자가 부족합니다."
 }
 
