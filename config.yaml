@@ -6,6 +6,8 @@ backup_storage:
   - type: smb
     host: your-nas-hostname
     share_path: 'share\backup'
+    user: nas-username
+    password_env: DOMI_NAS_PASSWORD
 
 # SQL 백업 설정
 sql:
