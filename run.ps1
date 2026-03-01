@@ -2,6 +2,8 @@
 # 경로 설정
 #################################################
 
+$ErrorActionPreference = "Stop"
+
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $logPath = Join-Path $scriptDir "log.txt"
 $configPath = Join-Path $scriptDir "config.yaml"
@@ -23,8 +25,9 @@ function Write-Log {
         Move-Item -Path $logPath -Destination $archiveName -Force
     }
 
-    "$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') [$Level] $Message" | Out-File -Append $logPath
-    Write-Host "$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') [$Level] $Message"
+    $logLine = "$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') [$Level] $Message"
+    $logLine | Out-File -Append -Encoding UTF8 $logPath
+    Write-Host $logLine
 }
 
 function Cleanup {
@@ -87,19 +90,27 @@ function Cleanup {
         }
     
         # Prometheus 로그 저장
-        "# 이 파일은 자동으로 반영됩니다." > $prometheusPath
-        "# 수정하지 마세요." >> $prometheusPath
-
-        foreach ($prometheusKey in $prometheus.Keys) {
-            "$prometheusKey $($prometheus[$prometheusKey])" >> $prometheusPath
-        }
+        @"
+# HELP domi_backup_last_timestamp Unix timestamp of last backup attempt
+# TYPE domi_backup_last_timestamp gauge
+domi_backup_last_timestamp $($prometheus.domi_backup_last_timestamp)
+# HELP domi_backup_last_success Whether the last backup was successful (1=success, 0=failure)
+# TYPE domi_backup_last_success gauge
+domi_backup_last_success $($prometheus.domi_backup_last_success)
+# HELP domi_backup_last_success_timestamp Unix timestamp of last successful backup
+# TYPE domi_backup_last_success_timestamp gauge
+domi_backup_last_success_timestamp $($prometheus.domi_backup_last_success_timestamp)
+# HELP domi_backup_size_bytes Size of last successful backup in bytes
+# TYPE domi_backup_size_bytes gauge
+domi_backup_size_bytes $($prometheus.domi_backup_size_bytes)
+"@ | Set-Content -Path $prometheusPath -Encoding UTF8
     }
 }
 
 
 #################################################
 
-Write-Log -Level "INFO" -Message ""
+Write-Log -Level "INFO" -Message "========================================="
 Write-Log -Level "INFO" -Message "백업 시작."
 
 
@@ -116,7 +127,7 @@ if (-not (Get-Module -ListAvailable -Name 'powershell-yaml')) {
 $config = Get-Content $configPath -Raw | ConvertFrom-Yaml
 
 # temp 폴더 생성
-$tempFolderName = "domi_backup-$(Get-Date -Format 'yyyyMMdd')-$(Get-Random -Maximum 9999)"
+$tempFolderName = "domi_backup-$(Get-Date -Format 'yyyyMMdd-HHmmss')-$([guid]::NewGuid().ToString('N').Substring(0,8))"
 $tempRootPath = "$($config.temp_directory)\\$tempFolderName"
 $tempPath = "$tempRootPath\\src"
 
@@ -140,7 +151,7 @@ $leftDriveChar = [char[]](67..90 | ForEach-Object { [char]$_ }) |
     Where-Object { $_.type -eq 'smb' }
 
 # 드라이브 문자 할당 검증
-if ($networkStorages.length -gt $leftDriveChar.Count) {
+if ($networkStorages.Count -gt $leftDriveChar.Count) {
     throw "할당 할 드라이브 문자가 부족합니다."
 }
 
@@ -270,6 +281,16 @@ foreach ($target in $config.backup_targets) {
     # 폴더 생성
     New-Item -ItemType Directory -Path "$tempPath\\$($target.name)" -Force | Out-Null
     
+    # 대상 경로 중복 검사
+    $destPaths = @()
+    foreach ($path in $target.source_paths) {
+        $dest = "$tempPath\\$($target.name)\\$($path[0])"
+        if ($dest -in $destPaths) {
+            throw "중복된 대상 경로: $dest"
+        }
+        $destPaths += $dest
+    }
+
     foreach ($path in $target.source_paths) {
         # 대상 경로 확인
         if ([string]::IsNullOrEmpty($path[1])) {
@@ -278,7 +299,7 @@ foreach ($target in $config.backup_targets) {
         }
         
         # 파일 복사
-        robocopy $path[1] "$tempPath\\$($target.name)\\$($path[0])" /E /MT:16 /R:3 /W:5 /NP /NFL /NDL /NJH /NJS
+        robocopy "$($path[1])" "$tempPath\\$($target.name)\\$($path[0])" /E /MT:16 /R:3 /W:5 /NP /NFL /NDL /NJH /NJS
         
         # 오류 검사
         if ($LASTEXITCODE -ge 8) {
