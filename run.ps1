@@ -22,7 +22,8 @@ function Write-Log {
 
 function Cleanup {
     param(
-        [switch]$IsError
+        [switch]$IsError,
+        [long]$BackupSize = 0
     )
 
     # 임시 폴더 삭제
@@ -75,7 +76,7 @@ function Cleanup {
         
         if (-not $IsError) {
             $prometheus.domi_backup_last_success_timestamp = $nowTimestemp
-            $prometheus.domi_backup_size_bytes = $backupFileSize
+            $prometheus.domi_backup_size_bytes = $BackupSize
         }
     
         # Prometheus 로그 저장
@@ -307,7 +308,7 @@ foreach ($storage in $networkStorages) {
 #################################################
 
 Write-Log -Level "INFO" -Message "정리중..."
-Cleanup
+Cleanup -BackupSize $backupFileSize
 Write-Log -Level "INFO" -Message "정리 완료"
 
 
