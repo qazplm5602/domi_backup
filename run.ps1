@@ -134,19 +134,18 @@ try {
     foreach ($database in $config.sql.databases) {
         Write-Log -Level "INFO" -Message "$database 데이터베이스 덤프중..."
     
-        $result = & "mysqldump.exe" "--defaults-extra-file=$credFile" "--default-character-set=binary" $database 2>&1
-        $errors = $result | Where-Object { $_ -is [System.Management.Automation.ErrorRecord] }
-        $dump = $result | Where-Object { $_ -isnot [System.Management.Automation.ErrorRecord] }
+        $sqlPath = "$tempPath\\db\\$($database).sql"
+        $errPath = "$tempPath\\db\\$($database).err"
+
+        # 덤프
+        & "mysqldump.exe" "--defaults-extra-file=$credFile" "--default-character-set=binary" $database > $sqlPath 2> $errPath
     
-        if ($errors.Count -ne 0) {
+        if ($LASTEXITCODE -ne 0) {
             Write-Log -Level "ERROR" -Message "$database DB 덤프 실패"
-            $errors
+            Get-Content -Path $errPath -Raw # 오류 출력
     
             throw "$database DB 덤프 실패"
         }
-    
-        # sql 파일로 저장
-        $dump | Out-File -FilePath "$tempPath\\db\\$($database).sql" -Encoding utf8 -Force
     
         Write-Log -Level "INFO" -Message "$database 데이터베이스 덤프 완료"
     }
