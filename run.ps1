@@ -53,7 +53,7 @@ function Cleanup {
     if ($config.prometheus.enable) {
         # 변수
         $prometheusPath = Join-Path $scriptDir $config.prometheus.path
-        $nowTimestemp = [DateTimeOffset]::Now.ToUnixTimeSeconds()
+        $nowTimestamp = [DateTimeOffset]::Now.ToUnixTimeSeconds()
     
         # Prometheus 로그 작성
         $prometheus = @{
@@ -79,10 +79,10 @@ function Cleanup {
 
         # 값 설정
         $prometheus.domi_backup_last_success = $IsError ? 0 : 1
-        $prometheus.domi_backup_last_timestamp = $nowTimestemp
+        $prometheus.domi_backup_last_timestamp = $nowTimestamp
         
         if (-not $IsError) {
-            $prometheus.domi_backup_last_success_timestamp = $nowTimestemp
+            $prometheus.domi_backup_last_success_timestamp = $nowTimestamp
             $prometheus.domi_backup_size_bytes = $BackupSize
         }
     
@@ -140,10 +140,10 @@ if ($networkStorages.length -gt $leftDriveChar.Count) {
 }
 
 # 드라이브 문자 할당 및 연결
-$stroageIdx = 0
+$storageIdx = 0
 
 foreach ($storage in $networkStorages) {
-    $storage._drive = $leftDriveChar[$stroageIdx++]
+    $storage._drive = $leftDriveChar[$storageIdx++]
 
     $rootPath = "\\$($storage.host)\$($storage.share_path)"
 
