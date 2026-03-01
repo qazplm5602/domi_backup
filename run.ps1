@@ -22,7 +22,7 @@ Write-Log -Level "INFO" -Message "백업 시작."
 #################################################
 
 # 설정 파일 로드
-$config = Get-Content ./domi.yaml -Raw | ConvertFrom-Yaml
+$config = Get-Content ./config.yaml -Raw | ConvertFrom-Yaml
 
 # temp 폴더 생성
 $tempFolderName = "domi_backup-$(Get-Date -Format 'yyyyMMdd')-$(Get-Random -Maximum 9999)"
