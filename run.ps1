@@ -74,16 +74,6 @@ foreach ($storage in $networkStorages) {
 # DB 덤프
 #################################################
 
-# 매개변수 설정
-$sqlDumpArgs = New-Object System.Collections.ArrayList
-
-# 인코딩 설정
-$sqlDumpArgs.Add("--default-character-set=binary") | Out-Null
-
-# 계정 이름 정보
-$sqlDumpArgs.Add("-u") | Out-Null
-$sqlDumpArgs.Add($config.sql.user) | Out-Null
-
 #비밀번호 정보
 if (-not [string]::IsNullOrEmpty($config.sql.password_env)) {
     $sqlPassword = [Environment]::GetEnvironmentVariable($config.sql.password_env)
@@ -91,35 +81,49 @@ if (-not [string]::IsNullOrEmpty($config.sql.password_env)) {
     if ($sqlPassword -eq $null) {
         throw "SQL 비밀번호를 가져올 수 없습니다."
     }
+}
 
-    $sqlDumpArgs.Add("-p") | Out-Null
-    $sqlDumpArgs.Add($sqlPassword) | Out-Null
-    
-    Remove-Item -Name "sqlPassword"
+# 인증 정보 파일 생성
+$credFile = [System.IO.Path]::GetTempFileName()
+
+@"
+[mysqldump]
+user=$($config.sql.user)
+"@ | Set-Content -Path $credFile -Force -ErrorAction SilentlyContinue
+
+# 비밀번호 필드 추가
+if ($null -ne $sqlPassword) {
+    "password=$sqlPassword" | Out-File -FilePath $credFile -Append
+    Remove-Variable -Name "sqlPassword" # 변수 삭제
 }
 
 # 덤프 폴더 생성
 New-Item -ItemType Directory -Path "$tempPath\\db" -Force | Out-Null
 
 # 덤프 시작
-foreach ($database in $config.sql.databases) {
-    Write-Log -Level "INFO" -Message "$database 데이터베이스 덤프중..."
-
-    $result = & "mysqldump.exe" $sqlDumpArgs $database 2>&1
-    $errors = $result | Where-Object { $_ -is [System.Management.Automation.ErrorRecord] }
-    $dump = $result | Where-Object { $_ -isnot [System.Management.Automation.ErrorRecord] }
-
-    if ($null -ne $errors) {
-        Write-Log -Level "ERROR" -Message "$database DB 덤프 실패"
-        $errors
-
-        throw "$database DB 덤프 실패"
+try {
+    foreach ($database in $config.sql.databases) {
+        Write-Log -Level "INFO" -Message "$database 데이터베이스 덤프중..."
+    
+        $result = & "mysqldump.exe" "--defaults-extra-file=$credFile" "--default-character-set=binary" $database 2>&1
+        $errors = $result | Where-Object { $_ -is [System.Management.Automation.ErrorRecord] }
+        $dump = $result | Where-Object { $_ -isnot [System.Management.Automation.ErrorRecord] }
+    
+        if ($null -ne $errors) {
+            Write-Log -Level "ERROR" -Message "$database DB 덤프 실패"
+            $errors
+    
+            throw "$database DB 덤프 실패"
+        }
+    
+        # sql 파일로 저장
+        $dump | Out-File -FilePath "$tempPath\\db\\$($database).sql" -Encoding utf8 -Force
+    
+        Write-Log -Level "INFO" -Message "$database 데이터베이스 덤프 완료"
     }
-
-    # sql 파일로 저장
-    $dump | Out-File -FilePath "$tempPath\\db\\$($database).sql" -Encoding utf8 -Force
-
-    Write-Log -Level "INFO" -Message "$database 데이터베이스 덤프 완료"
+} finally {
+    # DB 인증정보 삭제
+    Remove-Item -Path $credFile -Force -ErrorAction SilentlyContinue
 }
 
 
