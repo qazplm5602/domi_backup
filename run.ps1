@@ -33,7 +33,7 @@ function Cleanup {
     # 네트워크 드라이브 해제
     foreach ($storage in $networkStorages) {
         if ($storage._mount) {
-            Remove-PSDrive -Name $storage._drive -Force -ErrorAction SilentlyContinu
+            Remove-PSDrive -Name $storage._drive -Force -ErrorAction SilentlyContinue
         }
     }
 
