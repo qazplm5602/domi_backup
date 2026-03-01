@@ -47,6 +47,7 @@ function Cleanup {
     foreach ($storage in $networkStorages) {
         if ($storage._mount) {
             Remove-PSDrive -Name $storage._drive -Force -ErrorAction SilentlyContinue
+            net use "$($storage._drive):" /delete /y 2>$null
         }
     }
 
@@ -155,8 +156,9 @@ $used = (Get-PSDrive -PSProvider FileSystem).Name
 [array]$leftDriveChar = [char[]](67..90 | ForEach-Object { [char]$_ }) |
   Where-Object { $_ -notin $used }
   
-[array]$networkStorages = $config.backup_storage |
-    Where-Object { $_.type -eq 'smb' }
+[array]$networkStorages = if ($config.backup_storage) {
+    $config.backup_storage | Where-Object { $_.type -eq 'smb' }
+} else { @() }
 
 # 드라이브 문자 할당 검증
 if ($networkStorages.Count -gt $leftDriveChar.Count) {
@@ -176,7 +178,7 @@ foreach ($storage in $networkStorages) {
         Name        = $storage._drive
         PSProvider  = "FileSystem"
         Root        = $rootPath
-        Persist     = $true
+        Persist     = $false
         ErrorAction = "Stop"
     }
 
@@ -216,7 +218,8 @@ if (-not (Get-Command "mysqldump.exe" -ErrorAction SilentlyContinue)) {
     throw "mysqldump.exe가 PATH에 없습니다. MySQL을 설치하세요."
 }
 
-#비밀번호 정보
+# 비밀번호 정보
+$sqlPassword = $null
 if (-not [string]::IsNullOrEmpty($config.sql.password_env)) {
     $sqlPassword = [Environment]::GetEnvironmentVariable($config.sql.password_env)
 
@@ -314,6 +317,12 @@ foreach ($target in $config.backup_targets) {
             throw "$($target.name) 백업 실패"
         }
         
+        # 소스 경로 존재 여부 확인
+        if (-not (Test-Path $path[1])) {
+            Write-Log -Level "ERROR" -Message "소스 경로가 존재하지 않습니다: $($path[1])"
+            throw "소스 경로 없음: $($path[1])"
+        }
+
         # 파일 복사
         robocopy "$($path[1])" "$tempPath\\$($target.name)\\$($path[0])" /E /MT:16 /R:3 /W:5 /NP /NFL /NDL /NJH /NJS
         
