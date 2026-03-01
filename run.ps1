@@ -163,8 +163,13 @@ foreach ($target in $config.backup_targets) {
         }
         
         # 파일 복사
-        robocopy $path[1] "$tempPath\\$($target.name)\\$($path[0])" /E /MT:16 /R:3 /W:5 /NP /NFL /NDL /NJH /NJS |
-            Out-Null
+        robocopy $path[1] "$tempPath\\$($target.name)\\$($path[0])" /E /MT:16 /R:3 /W:5 /NP /NFL /NDL /NJH /NJS
+        
+        # 오류 검사
+        if ($LASTEXITCODE -ge 8) {
+            Write-Log -Level "ERROR" -Message "파일 복사 실패 (exit code: $LASTEXITCODE)"
+            throw "파일 복사 실패: $($path[1])"
+        }
     }
 
     Write-Log -Level "INFO" -Message "$($target.name) 백업 완료"
@@ -181,7 +186,13 @@ $backupPath = "$tempRootPath\\compress"
 Write-Log -Level "INFO" -Message "압축중..."
 
 # 7z 최대로 압축
-7z a -t7z "$backupPath\\$backupFileName" $tempPath -mx=9 -m0=lzma2 -mfb=64 -md=64m -bso0 -bsp0
+& 7z a -t7z "$backupPath\\$backupFileName" $tempPath -mx=9 -m0=lzma2 -mfb=64 -md=64m -bso0 -bsp0
+
+# 오류 검사
+if ($LASTEXITCODE -ne 0) {
+    Write-Log -Level "ERROR" -Message "압축 실패 (exit code: $LASTEXITCODE)"
+    throw "압축 실패"
+}
 
 Write-Log -Level "INFO" -Message "압축 완료"
 
@@ -196,8 +207,13 @@ foreach ($storage in $networkStorages) {
     Write-Log -Level "INFO" -Message "$($storage.share_path)($($storage.host))으로 파일 복사중..."
     
     # 네트워크 드라이브로 복사
-    robocopy $backupPath "$($storage._drive):\\" /E /Z /R:5 /W:10 /IPG:10 /NP /NFL /NDL /NJH /NJS |
-        Out-Null
+    robocopy $backupPath "$($storage._drive):\\" /E /Z /R:5 /W:10 /IPG:10 /NP /NFL /NDL /NJH /NJS
+
+    # 오류 검사
+    if ($LASTEXITCODE -ge 8) {
+        Write-Log -Level "ERROR" -Message "파일 복사 실패 (exit code: $LASTEXITCODE)"
+        throw "파일 복사 실패: $($storage.share_path)($($storage.host))"
+    }
     
     Write-Log -Level "INFO" -Message "$($storage.share_path)($($storage.host))으로 파일 복사 완료"
 }
