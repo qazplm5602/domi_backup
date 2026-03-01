@@ -21,6 +21,10 @@ function Write-Log {
 }
 
 function Cleanup {
+    param(
+        [switch]$IsError
+    )
+
     # 임시 폴더 삭제
     if ($null -ne $tempRootPath -and (Test-Path $tempRootPath)) {
         Remove-Item -Path $tempRootPath -Recurse -Force
@@ -30,6 +34,56 @@ function Cleanup {
     foreach ($storage in $networkStorages) {
         if ($storage._mount) {
             Remove-PSDrive -Name $storage._drive -Force -ErrorAction SilentlyContinu
+        }
+    }
+
+
+    #################################################
+    # Prometheus
+    #################################################
+
+    if ($config.prometheus.enable) {
+        # 변수
+        $prometheusPath = Join-Path $scriptDir $config.prometheus.path
+        $nowTimestemp = [DateTimeOffset]::Now.ToUnixTimeSeconds()
+    
+        # Prometheus 로그 작성
+        $prometheus = @{
+            domi_backup_last_timestamp = 0
+            domi_backup_last_success = 0
+            domi_backup_last_success_timestamp = 0
+            domi_backup_size_bytes = 0
+        }
+    
+        # prometheus 파일 로드
+        $prometheusContent = Get-Content $prometheusPath -ErrorAction SilentlyContinue
+    
+        foreach ($line in $prometheusContent) {
+            # 주석 제외
+            if ($line.StartsWith("#") -or -not $line.StartsWith("domi_")) {
+                continue
+            }
+    
+            # 원본 값 복원
+            $cutLine = $line.Split(" ")
+            $prometheus[$cutLine[0]] = $cutLine[1]
+        }
+
+        # 값 설정
+        $prometheus.domi_backup_last_success = $IsError ? 0 : 1
+        $prometheus.domi_backup_last_timestamp = $nowTimestemp
+        
+        if (-not $IsError) {
+            $prometheus.domi_backup_last_success_timestamp = $nowTimestemp
+            $prometheus.domi_backup_size_bytes = $backupFileSize
+        }
+    
+        # Prometheus 로그 저장
+        "# 이 파일은 자동으로 반영됩니다." > $prometheusPath
+        "# 수정하지 마세요." >> $prometheusPath
+
+        foreach ($prometheusKey in $prometheus.Keys) {
+            "$prometheusKey $($prometheus[$prometheusKey])" >> $prometheusPath
         }
     }
 }
@@ -57,7 +111,7 @@ New-Item -ItemType Directory -Path $tempRootPath -Force | Out-Null
 Write-Log -Level "INFO" -Message "$tempFolderName 임시 폴더 생성됨"
 
 # 예외 발생 시 자동 클린업
-trap { Cleanup; break }
+trap { Cleanup -IsError; break }
 
 
 #################################################
@@ -203,6 +257,9 @@ if ($LASTEXITCODE -ne 0) {
     Write-Log -Level "ERROR" -Message "압축 실패 (exit code: $LASTEXITCODE)"
     throw "압축 실패"
 }
+
+# 크기 가져오기 (Prometheus에서 사용)
+$backupFileSize = (Get-Item -Path "$backupPath\\$backupFileName").Length
 
 Write-Log -Level "INFO" -Message "압축 완료"
 
