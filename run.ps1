@@ -13,6 +13,7 @@ function Write-Log {
 
 #################################################
 
+Write-Log -Level "INFO" -Message ""
 Write-Log -Level "INFO" -Message "백업 시작."
 
 
@@ -140,7 +141,8 @@ foreach ($target in $config.backup_targets) {
         }
         
         # 파일 복사
-        robocopy $path[1] "$tempPath\\$($target.name)\\$($path[0])" /E /MT:16 /R:3 /W:5 /NP /NFL /NDL /NJH /NJS
+        robocopy $path[1] "$tempPath\\$($target.name)\\$($path[0])" /E /MT:16 /R:3 /W:5 /NP /NFL /NDL /NJH /NJS |
+            Out-Null
     }
 
     Write-Log -Level "INFO" -Message "$($target.name) 백업 완료"
@@ -151,7 +153,7 @@ foreach ($target in $config.backup_targets) {
 # 백업 파일 압축
 #################################################
 
-$backupFileName = "domiBackup_$(Get-Date -Format 'yyyy-MM-dd').7z"
+$backupFileName = "domiBackup_$(Get-Date -Format 'yyyy-MM-dd-HHmmss').7z"
 $backupPath = "$tempRootPath\\compress"
 
 Write-Log -Level "INFO" -Message "압축중..."
@@ -172,10 +174,23 @@ foreach ($storage in $networkStorages) {
     Write-Log -Level "INFO" -Message "$($storage.share_path)($($storage.host))으로 파일 복사중..."
     
     # 네트워크 드라이브로 복사
-    robocopy $backupPath "$($storage._drive):\\" /E /Z /R:5 /W:10 /IPG:10 /NP /NFL /NDL /NJH /NJS
+    robocopy $backupPath "$($storage._drive):\\" /E /Z /R:5 /W:10 /IPG:10 /NP /NFL /NDL /NJH /NJS |
+        Out-Null
     
     Write-Log -Level "INFO" -Message "$($storage.share_path)($($storage.host))으로 파일 복사 완료"
 }
+
+#################################################
+# 정리
+#################################################
+
+Write-Log -Level "INFO" -Message "정리중..."
+
+# 임시 폴더 삭제
+Remove-Item -Path $tempRootPath -Recurse -Force
+
+Write-Log -Level "INFO" -Message "정리 완료"
+
 
 #################################################
 
