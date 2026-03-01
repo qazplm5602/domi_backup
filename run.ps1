@@ -138,11 +138,32 @@ $stroageIdx = 0
 foreach ($storage in $networkStorages) {
     $storage._drive = $leftDriveChar[$stroageIdx++]
 
-    # 드라이브 연결
     $rootPath = "\\$($storage.host)\$($storage.share_path)"
 
+    # 인수
+    $driveParams = @{
+        Name        = $storage._drive
+        PSProvider  = "FileSystem"
+        Root        = $rootPath
+        Persist     = $true
+        ErrorAction = "Stop"
+    }
+
+    # 인증 정보 생성
+    if (-not [string]::IsNullOrEmpty($storage.user) -and -not [string]::IsNullOrEmpty($storage.password_env)) {
+        $storagePassword = [Environment]::GetEnvironmentVariable($storage.password_env)
+        if ([string]::IsNullOrEmpty($storagePassword)) {
+            Write-Log -Level "ERROR" -Message "$rootPath 드라이브 연결 실패 (비밀번호 환경 변수가 비어있습니다.)"
+            throw "$rootPath 드라이브 연결 실패"
+        }
+
+        $securePass = ConvertTo-SecureString $storagePassword -AsPlainText -Force
+        $driveParams.Credential = New-Object pscredential($storage.user, $securePass)
+    }
+
     try {
-        New-PSDrive -Name $storage._drive -PSProvider FileSystem -Root $rootPath -Persist -ErrorAction Stop | Out-Null
+        # 드라이브 연결
+        New-PSDrive @driveParams | Out-Null
     } catch {
         Write-Log -Level "ERROR" -Message "$rootPath 드라이브 연결 실패"
         throw $_
