@@ -107,6 +107,11 @@ Write-Log -Level "INFO" -Message "백업 시작."
 # Init
 #################################################
 
+# 모듈 설치 검사
+if (-not (Get-Module -ListAvailable -Name 'powershell-yaml')) {
+    throw "powershell-yaml 모듈이 필요합니다. 'Install-Module powershell-yaml'로 설치하세요."
+}
+
 # 설정 파일 로드
 $config = Get-Content $configPath -Raw | ConvertFrom-Yaml
 
