@@ -25,10 +25,12 @@ $config = Get-Content ./domi.yaml -Raw | ConvertFrom-Yaml
 
 # temp 폴더 생성
 $tempFolderName = "domi_backup-$(Get-Date -Format 'yyyyMMdd')-$(Get-Random -Maximum 9999)"
-$tempPath = "$($config.temp_directory)\\$tempFolderName"
+$tempRootPath = "$($config.temp_directory)\\$tempFolderName"
+$tempPath = "$tempRootPath\\src"
 
-New-Item -ItemType Directory -Path $tempPath -Force | Out-Null
+New-Item -ItemType Directory -Path $tempRootPath -Force | Out-Null
 Write-Log -Level "INFO" -Message "$tempFolderName 임시 폴더 생성됨"
+
 
 #################################################
 # 네트워크 드라이브
@@ -64,4 +66,57 @@ foreach ($storage in $networkStorages) {
     }
 
     Write-Log -Level "INFO" -Message "$($storage._drive) 드라이브로 $rootPath 연결됨"
+}
+
+
+#################################################
+# DB 덤프
+#################################################
+
+# 매개변수 설정
+$sqlDumpArgs = New-Object System.Collections.ArrayList
+
+# 인코딩 설정
+$sqlDumpArgs.Add("--default-character-set=binary") | Out-Null
+
+# 계정 이름 정보
+$sqlDumpArgs.Add("-u") | Out-Null
+$sqlDumpArgs.Add($config.sql.user) | Out-Null
+
+#비밀번호 정보
+if (-not [string]::IsNullOrEmpty($config.sql.password_env)) {
+    $sqlPassword = [Environment]::GetEnvironmentVariable($config.sql.password_env)
+
+    if ($sqlPassword -eq $null) {
+        throw "SQL 비밀번호를 가져올 수 없습니다."
+    }
+
+    $sqlDumpArgs.Add("-p") | Out-Null
+    $sqlDumpArgs.Add($sqlPassword) | Out-Null
+    
+    Remove-Item -Name "sqlPassword"
+}
+
+# 덤프 폴더 생성
+New-Item -ItemType Directory -Path "$tempPath\\db" -Force | Out-Null
+
+# 덤프 시작
+foreach ($database in $config.sql.databases) {
+    Write-Log -Level "INFO" -Message "$database 데이터베이스 덤프중..."
+
+    $result = & "mysqldump.exe" $sqlDumpArgs $database 2>&1
+    $errors = $result | Where-Object { $_ -is [System.Management.Automation.ErrorRecord] }
+    $dump = $result | Where-Object { $_ -isnot [System.Management.Automation.ErrorRecord] }
+
+    if ($null -ne $errors) {
+        Write-Log -Level "ERROR" -Message "$database DB 덤프 실패"
+        $errors
+
+        throw "$database DB 덤프 실패"
+    }
+
+    # sql 파일로 저장
+    $dump | Out-File -FilePath "$tempPath\\db\\$($database).sql" -Encoding utf8 -Force
+
+    Write-Log -Level "INFO" -Message "$database 데이터베이스 덤프 완료"
 }
