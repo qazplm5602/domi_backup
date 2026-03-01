@@ -19,8 +19,8 @@ sql:
 backup_targets:
   - name: my-project
     source_paths:
-      - 'C:\Users\User\projects\my-project'
+      - ['target', 'C:\Users\User\projects\my-project']
 
   - name: documents
     source_paths:
-      - 'C:\Users\User\Documents'
+      - ['', 'C:\Users\User\Documents']

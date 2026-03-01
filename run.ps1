@@ -120,3 +120,27 @@ foreach ($database in $config.sql.databases) {
 
     Write-Log -Level "INFO" -Message "$database 데이터베이스 덤프 완료"
 }
+
+#################################################
+# 파일 백업
+#################################################
+
+foreach ($target in $config.backup_targets) {
+    Write-Log -Level "INFO" -Message "$($target.name) 백업중..."
+    
+    # 폴더 생성
+    New-Item -ItemType Directory -Path "$tempPath\\$($target.name)" -Force | Out-Null
+    
+    foreach ($path in $target.source_paths) {
+        # 대상 경로 확인
+        if ([string]::IsNullOrEmpty($path[1])) {
+            Write-Log -Level "ERROR" -Message "$($target.name) 백업 실패 ($($path[1]) -> $($path[0]) 경로가 지정되지 않음)"
+            throw "$($target.name) 백업 실패"
+        }
+        
+        # 파일 복사
+        robocopy $path[1] "$tempPath\\$($target.name)\\$($path[0])" /E /MT:16 /R:3 /W:5 /NP
+    }
+
+    Write-Log -Level "INFO" -Message "$($target.name) 백업 완료"
+}
