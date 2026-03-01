@@ -138,7 +138,7 @@ foreach ($storage in $networkStorages) {
     $storage._drive = $leftDriveChar[$stroageIdx++]
 
     # 드라이브 연결
-    $rootPath = "\\" + $storage.host + "\" + $storage.share_path
+    $rootPath = "\\$($storage.host)\$($storage.share_path)"
 
     try {
         New-PSDrive -Name $storage._drive -PSProvider FileSystem -Root $rootPath -Persist -ErrorAction Stop | Out-Null
@@ -169,16 +169,19 @@ if (-not [string]::IsNullOrEmpty($config.sql.password_env)) {
 # 인증 정보 파일 생성
 $credFile = [System.IO.Path]::GetTempFileName()
 
-@"
+$credContent = @"
 [mysqldump]
 user=$($config.sql.user)
-"@ | Set-Content -Path $credFile -Force -ErrorAction SilentlyContinue
+"@
 
 # 비밀번호 필드 추가
 if ($null -ne $sqlPassword) {
-    "password=$sqlPassword" | Out-File -FilePath $credFile -Append
+    $credContent += "`npassword=$sqlPassword"
     Remove-Variable -Name "sqlPassword" # 변수 삭제
 }
+
+# 인증 정보 저장
+$credContent | Set-Content -Path $credFile -Force -Encoding ASCII -ErrorAction Stop
 
 # 덤프 폴더 생성
 New-Item -ItemType Directory -Path "$tempPath\\db" -Force | Out-Null
