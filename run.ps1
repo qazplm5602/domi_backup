@@ -11,6 +11,20 @@ function Write-Log {
     Write-Host "$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') [$Level] $Message"
 }
 
+function Cleanup {
+    # 임시 폴더 삭제
+    if ($null -ne $tempRootPath -and (Test-Path $tempRootPath)) {
+        Remove-Item -Path $tempRootPath -Recurse -Force
+    }
+
+    # 네트워크 드라이브 해제
+    foreach ($storage in $networkStorages) {
+        if ($storage._mount) {
+            Remove-PSDrive -Name $storage._drive -Force -ErrorAction SilentlyContinu
+        }
+    }
+}
+
 #################################################
 
 Write-Log -Level "INFO" -Message ""
@@ -32,6 +46,8 @@ $tempPath = "$tempRootPath\\src"
 New-Item -ItemType Directory -Path $tempRootPath -Force | Out-Null
 Write-Log -Level "INFO" -Message "$tempFolderName 임시 폴더 생성됨"
 
+# 예외 발생 시 자동 클린업
+trap { Cleanup; break }
 
 #################################################
 # 네트워크 드라이브
@@ -66,6 +82,8 @@ foreach ($storage in $networkStorages) {
         throw $_
     }
 
+    # 플래그
+    $storage._mount = $true
     Write-Log -Level "INFO" -Message "$($storage._drive) 드라이브로 $rootPath 연결됨"
 }
 
@@ -189,14 +207,10 @@ foreach ($storage in $networkStorages) {
 #################################################
 
 Write-Log -Level "INFO" -Message "정리중..."
-
-# 임시 폴더 삭제
-Remove-Item -Path $tempRootPath -Recurse -Force
-
+Cleanup
 Write-Log -Level "INFO" -Message "정리 완료"
 
 
 #################################################
-
 
 Write-Log -Level "INFO" -Message "백업 완료!"
