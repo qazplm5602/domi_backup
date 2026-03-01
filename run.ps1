@@ -56,7 +56,7 @@ function Cleanup {
         $nowTimestamp = [DateTimeOffset]::Now.ToUnixTimeSeconds()
     
         # Prometheus 로그 작성
-        $prometheus = @{
+        $prometheus = [ordered]@{
             domi_backup_last_timestamp = 0
             domi_backup_last_success = 0
             domi_backup_last_success_timestamp = 0
