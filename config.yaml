@@ -1,0 +1,26 @@
+# 임시 디렉터리 경로
+temp_directory: 'C:\your\temp\path'
+
+# 백업 장치
+backup_storage:
+  - type: smb
+    host: your-nas-hostname
+    share_path: 'share\backup'
+
+# SQL 백업 설정
+sql:
+  user: root
+  password_env: DOMI_SQL_PASSWORD
+  databases:
+    - mydb1
+    - mydb2
+
+# 백업 폴더
+backup_targets:
+  - name: my-project
+    source_paths:
+      - 'C:\Users\User\projects\my-project'
+
+  - name: documents
+    source_paths:
+      - 'C:\Users\User\Documents'
