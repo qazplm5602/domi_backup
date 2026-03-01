@@ -15,9 +15,20 @@ function Write-Log {
 
 Write-Log -Level "INFO" -Message "백업 시작."
 
+
+#################################################
+# Init
+#################################################
+
 # 설정 파일 로드
 $config = Get-Content ./domi.yaml -Raw | ConvertFrom-Yaml
 
+# temp 폴더 생성
+$tempFolderName = "domi_backup-$(Get-Date -Format 'yyyyMMdd')-$(Get-Random -Maximum 9999)"
+$tempPath = "$($config.temp_directory)\\$tempFolderName"
+
+New-Item -ItemType Directory -Path $tempPath -Force | Out-Null
+Write-Log -Level "INFO" -Message "$tempFolderName 임시 폴더 생성됨"
 
 #################################################
 # 네트워크 드라이브
