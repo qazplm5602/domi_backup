@@ -24,3 +24,8 @@ backup_targets:
   - name: documents
     source_paths:
       - ['', 'C:\Users\User\Documents']
+
+# Prometheus 설정
+prometheus:
+  enable: true
+  path: './prometheus.prom'
