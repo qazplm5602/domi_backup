@@ -300,6 +300,9 @@ $backupPath = "$tempRootPath\\compress"
 
 Write-Log -Level "INFO" -Message "압축중..."
 
+# 폴더 생성
+New-Item -ItemType Directory -Path $backupPath -Force | Out-Null
+
 # 7z 최대로 압축
 & 7z a -t7z "$backupPath\\$backupFileName" $tempPath -mx=9 -m0=lzma2 -mfb=64 -md=64m -bso0 -bsp0
 
