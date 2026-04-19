@@ -1,0 +1,21 @@
+{
+    "folders": [
+        {
+            "name": "windows",
+            "path": "windows"
+        },
+        {
+            "name": "linux",
+            "path": "linux"
+        }
+    ],
+    "settings": {
+        "files.eol": "\r\n",
+        "[powershell]": {
+            "files.eol": "\r\n"
+        },
+        "[shellscript]": {
+            "files.eol": "\n"
+        }
+    }
+}
