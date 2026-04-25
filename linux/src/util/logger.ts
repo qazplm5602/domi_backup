@@ -3,19 +3,22 @@ import { join } from "path";
 
 type LogLevel = "INFO" | "ERROR";
 
+const LOG_FILE_NAME = "log.txt";
 const MAX_LOG_SIZE = 10 * 1024 * 1024; // 10MB
 
-// LOG_PATH 환경변수가 없으면 현재 경로의 log.txt에 기록
-const logPath = process.env.LOG_PATH ?? join(process.cwd(), "log.txt");
+// LOG_PATH or 현재 경로에 log.txt
+const logPath = process.env.LOG_PATH ?? join(process.cwd(), LOG_FILE_NAME);
 
 // 로그 파일이 10MB를 초과하면 타임스탬프를 붙여 아카이브
 function rotateIfNeeded() {
     try {
         const stat = statSync(logPath);
+        
         if (stat.size > MAX_LOG_SIZE) {
             const timestamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
             const ext = logPath.endsWith(".txt") ? ".txt" : "";
             const base = ext ? logPath.slice(0, -ext.length) : logPath;
+
             renameSync(logPath, `${base}-${timestamp}${ext}`);
         }
     } catch {

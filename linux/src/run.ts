@@ -1,35 +1,43 @@
 import { createLogger } from "@src/util/logger.ts";
 import { pipelines, hooks } from "@src/workflow.ts";
-import type { Hook } from "@src/hook/hook.ts";
+import { callHook } from "@src/hook/callHook.ts";
+import { createContext } from "@src/context.ts";
 
 const log = createLogger("main");
 
-async function callHook(hooks: Hook[], method: "onStart" | "onComplete" | "onFinish") {
-    for (const hook of hooks) {
-        await hook[method]?.();
-    }
-}
 
 async function main() {
     log.info("=========================================");
     log.info("백업 시작");
 
-    // Hook: onStart
-    await callHook(hooks, "onStart");
+
+    // config 구현 예정
+    const config: any = {};
+
+
+    const ctx = createContext(config);
+
+    const stages = pipelines.map(S => new S(ctx));
+    const hookList = hooks.map(H => new H(ctx));
+
+    // 시작 이벤트
+    await callHook(hookList, h => h.onStart?.());
 
     // 스테이지 실행
-    const cleanupStack: typeof pipelines = [];
+    const cleanupStack: typeof stages = [];
 
     try {
-        for (const stage of pipelines) {
+        for (const stage of stages) {
             log.info(`[${stage.constructor.name}] 실행중...`);
+            
             await stage.run();
             cleanupStack.push(stage);
+
             log.info(`[${stage.constructor.name}] 완료`);
         }
 
-        // Hook: onComplete (백업 완료, 파일 아직 있음)
-        await callHook(hooks, "onComplete");
+        // 백업 완료 이벤트
+        await callHook(hookList, h => h.onComplete?.());
     } catch (e) {
         log.error(`오류 발생: ${e}`);
     } finally {
@@ -43,8 +51,8 @@ async function main() {
             }
         }
 
-        // Hook: onFinish (정리까지 완료)
-        await callHook(hooks, "onFinish");
+        // 백업 완료 및 마무리 이벤트
+        await callHook(hookList, h => h.onFinish?.());
     }
 
     log.info("백업 완료!");
