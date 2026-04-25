@@ -10,10 +10,11 @@ export interface Context {
     tempPath: string;
     // 백업 시작 시간
     backupDate: Date;
+    // 압축 결과 아카이브 경로 (CompressStage 가 세팅, 이후 업로드 단계에서 사용)
+    archivePath?: string;
     // 파이프라인 실행 결과 (Hook에서 참조)
     result: {
         success: boolean;
-        backupFileSize?: number;
     };
 }
 
