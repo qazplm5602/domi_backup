@@ -9,6 +9,7 @@ export interface SmbStorage {
     share_path: string;
     user: string;
     password_env: string;
+    retain_days?: number;
 }
 
 export type BackupStorage = SmbStorage;

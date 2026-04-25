@@ -4,6 +4,7 @@ import type { Context } from "@src/context.ts";
 import { SqlDumpStage } from "@src/pipeline/sqldump.ts";
 import { FileBackupStage } from "@src/pipeline/filebackup.ts";
 import { CompressStage } from "@src/pipeline/compress.ts";
+import { SmbTransferStage } from "@src/pipeline/smbtransfer.ts";
 
 type StageClass = new (ctx: Context) => Stage;
 type HookClass = new (ctx: Context) => Hook;
@@ -13,6 +14,7 @@ const pipelines: StageClass[] = [
     SqlDumpStage,
     FileBackupStage,
     CompressStage,
+    SmbTransferStage,
 ];
 
 // 훅 목록

@@ -8,6 +8,7 @@ backup_storage:
     share_path: 'share/backup'
     user: nas-username
     password_env: DOMI_NAS_PASSWORD
+    retain_days: 30
 
 # SQL 백업 설정
 sql:
