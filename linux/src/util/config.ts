@@ -15,6 +15,8 @@ export type BackupStorage = SmbStorage;
 
 // SQL 덤프 설정
 export interface SqlConfig {
+    host?: string;
+    port?: number;
     user: string;
     password_env?: string;
     databases: string[];

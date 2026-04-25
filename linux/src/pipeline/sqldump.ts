@@ -47,6 +47,8 @@ export class SqlDumpStage extends Stage {
 
         let content = `[mysqldump]\nuser=${sql.user}\n`;
         if (password !== undefined) content += `password=${password}\n`;
+        if (sql.host !== undefined) content += `host=${sql.host}\n`;
+        if (sql.port !== undefined) content += `port=${sql.port}\n`;
 
         const path = join(this.ctx.tempPath, ".mysqldump.cnf");
         writeFileSync(path, content, { mode: 0o600 });
