@@ -5,6 +5,7 @@ import { SqlDumpStage } from "@src/pipeline/sqldump.ts";
 import { FileBackupStage } from "@src/pipeline/filebackup.ts";
 import { CompressStage } from "@src/pipeline/compress.ts";
 import { SmbTransferStage } from "@src/pipeline/smbtransfer.ts";
+import { PrometheusHook } from "@src/hook/prometheus.ts";
 
 type StageClass = new (ctx: Context) => Stage;
 type HookClass = new (ctx: Context) => Hook;
@@ -19,7 +20,7 @@ const pipelines: StageClass[] = [
 
 // 훅 목록
 const hooks: HookClass[] = [
-
+    PrometheusHook,
 ];
 
 

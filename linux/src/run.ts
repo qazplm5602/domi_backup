@@ -35,6 +35,8 @@ async function main() {
             log.info(`[${stage.constructor.name}] 완료`);
         }
 
+        ctx.result.success = true;
+
         // 백업 완료 이벤트
         await callHook(hookList, h => h.onComplete?.());
     } catch (e) {
