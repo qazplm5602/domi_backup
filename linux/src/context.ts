@@ -1,4 +1,4 @@
-import { mkdtempSync } from "fs";
+import { mkdtempSync, rmSync } from "fs";
 import { join } from "path";
 import type { Config } from "@src/util/config.ts";
 
@@ -30,4 +30,9 @@ export function createContext(config: Config): Context {
             success: false,
         },
     };
+}
+
+// 파이프라인 종료 후에 Context 정리
+export function disposeContext(ctx: Context): void {
+    rmSync(ctx.tempPath, { recursive: true, force: true });
 }

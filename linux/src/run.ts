@@ -1,7 +1,7 @@
 import { createLogger } from "@src/util/logger.ts";
 import { pipelines, hooks } from "@src/workflow.ts";
 import { callHook } from "@src/hook/callHook.ts";
-import { createContext } from "@src/context.ts";
+import { createContext, disposeContext } from "@src/context.ts";
 import { loadConfig } from "@src/util/config.ts";
 
 const log = createLogger("main");
@@ -52,6 +52,13 @@ async function main() {
 
         // 백업 완료 및 마무리 이벤트
         await callHook(hookList, h => h.onFinish?.());
+
+        // Context 정리
+        try {
+            disposeContext(ctx);
+        } catch (e) {
+            log.error(`Context 정리 실패: ${e}`);
+        }
     }
 
     log.info("백업 완료!");
