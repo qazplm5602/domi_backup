@@ -2,7 +2,8 @@ name: Release
 
 on:
   push:
-    branches: [main]
+    tags:
+      - 'v*'
   workflow_dispatch:
 
 permissions:
@@ -45,9 +46,5 @@ jobs:
       - name: 릴리즈에 업로드
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: nightly
-          name: Nightly Build
-          body: |
-            Auto-built from `${{ github.sha }}` on ${{ github.ref_name }}.
           files: linux/bin/*
-          make_latest: true
+          generate_release_notes: true
