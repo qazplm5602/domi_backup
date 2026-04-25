@@ -1,2 +1,6 @@
 log*.txt
 prometheus.prom
+.DS_Store
+
+# AI
+.omc/
