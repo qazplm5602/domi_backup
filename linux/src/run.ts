@@ -2,6 +2,7 @@ import { createLogger } from "@src/util/logger.ts";
 import { pipelines, hooks } from "@src/workflow.ts";
 import { callHook } from "@src/hook/callHook.ts";
 import { createContext } from "@src/context.ts";
+import { loadConfig } from "@src/util/config.ts";
 
 const log = createLogger("main");
 
@@ -10,10 +11,8 @@ async function main() {
     log.info("=========================================");
     log.info("백업 시작");
 
-
-    // config 구현 예정
-    const config: any = {};
-
+    // 설정 로드
+    const config = loadConfig();
 
     const ctx = createContext(config);
 

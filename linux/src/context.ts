@@ -1,10 +1,11 @@
 import { mkdtempSync } from "fs";
 import { join } from "path";
+import type { Config } from "@src/util/config.ts";
 
 // 파이프라인 전체에서 공유하는 문맥
 export interface Context {
     // YAML 설정
-    config: any; // TODO: Config 타입 정의 후 교체
+    config: Config;
     // 임시 폴더 경로
     tempPath: string;
     // 백업 시작 시간
@@ -17,7 +18,7 @@ export interface Context {
 }
 
 // 파이프라인 시작 전에 Context 생성
-export function createContext(config: any): Context {
+export function createContext(config: Config): Context {
     const backupDate = new Date();
     const tempPath = mkdtempSync(join(config.temp_directory, "domi_backup-"));
 
