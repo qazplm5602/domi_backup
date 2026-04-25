@@ -1,18 +1,22 @@
 import { mkdirSync, existsSync, cpSync } from "fs";
 import { join } from "path";
 import { Stage } from "@src/pipeline/stage.ts";
+import { retry } from "@src/util/retry.ts";
 import type { BackupTarget } from "@src/util/config.ts";
+
+const COPY_RETRIES = 3;
+const COPY_WAIT_MS = 5_000;
 
 export class FileBackupStage extends Stage {
     public async run(): Promise<void> {
         for (const target of this.ctx.config.backup_targets) {
-            this.backupTarget(target);
+            await this.backupTarget(target);
         }
     }
 
     public async cleanup(): Promise<void> {}
 
-    private backupTarget(target: BackupTarget): void {
+    private async backupTarget(target: BackupTarget): Promise<void> {
         this.log.info(`${target.name} 백업중...`);
 
         const targetDir = join(this.ctx.tempPath, target.name);
@@ -21,7 +25,7 @@ export class FileBackupStage extends Stage {
         this.assertNoDuplicateDestPaths(target, targetDir);
 
         for (const [destSubPath, sourceAbsPath] of target.source_paths) {
-            this.copyOne(target.name, sourceAbsPath, destSubPath, targetDir);
+            await this.copyOne(target.name, sourceAbsPath, destSubPath, targetDir);
         }
 
         this.log.info(`${target.name} 백업 완료`);
@@ -40,12 +44,12 @@ export class FileBackupStage extends Stage {
     }
 
     // path가 비어있는것과 백업할 폴더가 없는것은 다른 에러로 구분
-    private copyOne(
+    private async copyOne(
         targetName: string,
         sourceAbsPath: string,
         destSubPath: string,
         targetDir: string,
-    ): void {
+    ): Promise<void> {
         if (!sourceAbsPath) {
             this.log.error(`${targetName} 백업 실패 (${destSubPath} 경로가 지정되지 않음)`);
             throw new Error(`${targetName} 백업 실패`);
@@ -57,6 +61,16 @@ export class FileBackupStage extends Stage {
         }
 
         const dest = join(targetDir, destSubPath);
-        cpSync(sourceAbsPath, dest, { recursive: true });
+
+        await retry(
+            () => cpSync(sourceAbsPath, dest, { recursive: true }),
+            {
+                retries: COPY_RETRIES,
+                waitMs: COPY_WAIT_MS,
+                onRetry: (e, attempt, total) => {
+                    this.log.error(`${sourceAbsPath} 복사 실패, 재시도 ${attempt}/${total - 1}: ${e}`);
+                },
+            },
+        );
     }
 }

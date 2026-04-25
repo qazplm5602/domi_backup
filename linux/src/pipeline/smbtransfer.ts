@@ -1,7 +1,11 @@
 import { writeFileSync, rmSync, existsSync } from "fs";
 import { join, basename } from "path";
 import { Stage } from "@src/pipeline/stage.ts";
+import { retry } from "@src/util/retry.ts";
 import type { SmbStorage } from "@src/util/config.ts";
+
+const UPLOAD_RETRIES = 5;
+const UPLOAD_WAIT_MS = 10_000;
 
 export class SmbTransferStage extends Stage {
     public async run(): Promise<void> {
@@ -46,7 +50,17 @@ export class SmbTransferStage extends Stage {
             const remoteName = basename(archivePath);
 
             const cmd = this.buildPutCommand(remoteDir, archivePath, remoteName);
-            await this.runSmbclient(service, credFile, cmd);
+
+            await retry(
+                () => this.runSmbclient(service, credFile, cmd),
+                {
+                    retries: UPLOAD_RETRIES,
+                    waitMs: UPLOAD_WAIT_MS,
+                    onRetry: (e, attempt, total) => {
+                        this.log.error(`${storage.share_path}(${storage.host}) 업로드 실패, 재시도 ${attempt}/${total - 1}: ${e}`);
+                    },
+                },
+            );
         } finally {
             rmSync(credFile, { force: true });
         }
